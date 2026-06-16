@@ -305,7 +305,7 @@ dependencies = [
 
 [[package]]
 name = "blind-watermark-app"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "serde",
@@ -5088,7 +5088,7 @@ dependencies = [
 
 [[package]]
 name = "watermark"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -5099,7 +5099,7 @@ dependencies = [
 
 [[package]]
 name = "watermark-core"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "chrono",

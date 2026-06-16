@@ -18,16 +18,19 @@ jobs:
   publish-tauri:
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      MACOS_CERT_AVAILABLE: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.KEYCHAIN_PASSWORD != '' }}
+      MACOS_NOTARY_API_AVAILABLE: ${{ secrets.APPLE_API_KEY != '' && secrets.APPLE_API_ISSUER != '' && secrets.APPLE_API_KEY_CONTENT != '' }}
+      MACOS_NOTARY_APPLE_ID_AVAILABLE: ${{ secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
 
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: macos-15-intel
-            args: --target x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --config src-tauri/tauri.macos.signing.json
             target: x86_64-apple-darwin
           - platform: macos-latest
-            args: --target aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --config src-tauri/tauri.macos.signing.json
             target: aarch64-apple-darwin
           - platform: ubuntu-22.04
             args: ""
@@ -66,10 +69,80 @@ jobs:
       - name: Run Rust tests
         run: cargo test --workspace
 
+      - name: Import Apple Developer ID certificate
+        if: runner.os == 'macOS' && env.MACOS_CERT_AVAILABLE == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12 || echo "$APPLE_CERTIFICATE" | base64 -D > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application" | head -n 1 || true)
+          if [ -z "$CERT_INFO" ]; then
+            echo "::error::APPLE_CERTIFICATE must contain a Developer ID Application certificate for public macOS distribution."
+            security find-identity -v -p codesigning build.keychain
+            exit 1
+          fi
+          CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
+          echo "APPLE_SIGNING_IDENTITY=$CERT_ID" >> "$GITHUB_ENV"
+
+      - name: Validate Apple notarization credentials
+        if: runner.os == 'macOS' && env.MACOS_CERT_AVAILABLE == 'true' && env.MACOS_NOTARY_API_AVAILABLE != 'true' && env.MACOS_NOTARY_APPLE_ID_AVAILABLE != 'true'
+        run: |
+          echo "::error::Developer ID macOS releases must be notarized. Configure APPLE_API_KEY, APPLE_API_ISSUER, APPLE_API_KEY_CONTENT or APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID."
+          exit 1
+
+      - name: Validate Apple signing certificate
+        if: runner.os == 'macOS' && env.MACOS_CERT_AVAILABLE != 'true' && (env.MACOS_NOTARY_API_AVAILABLE == 'true' || env.MACOS_NOTARY_APPLE_ID_AVAILABLE == 'true')
+        run: |
+          echo "::error::Apple notarization credentials require APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, and KEYCHAIN_PASSWORD."
+          exit 1
+
+      - name: Configure macOS ad-hoc signing fallback
+        if: runner.os == 'macOS' && env.MACOS_CERT_AVAILABLE != 'true'
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+
+      - name: Configure macOS signing for Tauri
+        if: runner.os == 'macOS'
+        run: |
+          CONFIG_PATH="src-tauri/tauri.macos.signing.json"
+          cat > "$CONFIG_PATH" <<EOF
+          {
+            "bundle": {
+              "macOS": {
+                "signingIdentity": "$APPLE_SIGNING_IDENTITY",
+                "hardenedRuntime": true
+              }
+            }
+          }
+          EOF
+
+      - name: Prepare Apple notarization API key
+        if: runner.os == 'macOS' && env.MACOS_NOTARY_API_AVAILABLE == 'true'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "$APPLE_API_KEY_CONTENT" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "APPLE_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
       - name: Build Tauri release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         with:
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: "Watermark ${{ env.RELEASE_TAG }}"

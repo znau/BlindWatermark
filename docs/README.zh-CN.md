@@ -163,11 +163,30 @@ cargo run -p watermark -- evidence export \
 
 GitHub 托管 runner 对 Linux/Windows 32 位安装包没有通用、稳定的一键矩阵。如果必须支持 32 位包，建议使用 self-hosted runner 或补充目标平台交叉编译配置。
 
+### macOS 签名和公证
+
+公开分发的 macOS 安装包应该使用 Apple Developer ID 证书签名并完成 notarization 公证。否则 Gatekeeper 可能会显示误导性的“应用已损坏”提示，Apple Silicon 从 GitHub 下载的构建尤其容易遇到。
+
+生产发布请在 GitHub 仓库 Secrets 中配置：
+
+- `APPLE_CERTIFICATE`：Developer ID Application `.p12` 的 base64 内容。
+- `APPLE_CERTIFICATE_PASSWORD`：`.p12` 密码。
+- `KEYCHAIN_PASSWORD`：CI 临时 keychain 密码。
+- `APPLE_API_KEY`、`APPLE_API_ISSUER`、`APPLE_API_KEY_CONTENT`：用于 notarization 的 App Store Connect API key。
+
+也可以使用 `APPLE_ID`、`APPLE_PASSWORD`、`APPLE_TEAM_ID` 做公证，但 CI 更推荐 API key。
+
+如果没有配置 Apple 证书，workflow 会对 macOS 构建使用 ad-hoc signing，适合内部测试，但不能替代 Developer ID 签名和公证。如果只是本地测试未签名下载包，可以移除 quarantine 属性：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Blind Watermark.app"
+```
+
 创建发布：
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.3
+git push origin v0.1.3
 ```
 
 ## 许可证
