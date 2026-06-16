@@ -5,12 +5,20 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build, for example v0.1.0"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   publish-tauri:
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -32,6 +40,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -57,12 +67,12 @@ jobs:
         run: cargo test --workspace
 
       - name: Build Tauri release
-        uses: tauri-apps/tauri-action@v1
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Blind Watermark ${{ github.ref_name }}"
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: "Blind Watermark ${{ env.RELEASE_TAG }}"
           releaseBody: "Cross-platform Blind Watermark desktop release."
           releaseDraft: true
           prerelease: false
