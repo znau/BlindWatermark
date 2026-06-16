@@ -72,7 +72,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ env.RELEASE_TAG }}
-          releaseName: "Blind Watermark ${{ env.RELEASE_TAG }}"
+          releaseName: "Watermark ${{ env.RELEASE_TAG }}"
           releaseBody: "Cross-platform Blind Watermark desktop release."
           releaseDraft: true
           prerelease: false
