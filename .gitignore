@@ -1,0 +1,9 @@
+/target
+/node_modules
+/dist
+/ui/dist
+/src-tauri/target
+/.DS_Store
+/*.sqlite
+/*.db
+/.tauri

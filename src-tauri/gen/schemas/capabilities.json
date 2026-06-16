@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default desktop capability for local blind watermark operations.","local":true,"windows":["main"],"permissions":["core:default","dialog:default","shell:default"]}}
