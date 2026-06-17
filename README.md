@@ -12,7 +12,7 @@ Blind Watermark is a cross-platform, commercial-grade blind image watermarking t
 - SQLite evidence database with SHA-256, perceptual hash, PSNR, algorithm version, and ownership metadata.
 - Evidence export as JSON, CSV, and PDF.
 - Tauri desktop UI with English, Simplified Chinese, and Traditional Chinese.
-- Cross-platform architecture for macOS, Windows, and Linux.
+- Cross-platform architecture with release builds focused on Windows and Linux.
 - GitHub Actions workflow for release builds.
 
 ## Architecture
@@ -156,31 +156,10 @@ The desktop app supports:
 
 The workflow in `.github/workflows/release.yml` builds installers for:
 
-- macOS x64.
-- macOS arm64.
-- Windows x64.
-- Linux x64.
+- Windows x64, packaged with NSIS.
+- Linux x64, packaged as DEB and AppImage.
 
-GitHub-hosted runners do not provide a practical universal matrix for every Linux/Windows 32-bit installer target. If 32-bit packages are required, use self-hosted runners or add target-specific cross-compilation setup.
-
-### macOS Signing And Notarization
-
-Public macOS downloads should be signed with an Apple Developer ID certificate and notarized. Otherwise Gatekeeper can show a misleading "app is damaged" message, especially on Apple Silicon builds downloaded from GitHub.
-
-For production macOS releases, add these GitHub repository secrets:
-
-- `APPLE_CERTIFICATE`: base64-encoded Developer ID Application `.p12`.
-- `APPLE_CERTIFICATE_PASSWORD`: password for the `.p12`.
-- `KEYCHAIN_PASSWORD`: temporary CI keychain password.
-- `APPLE_API_KEY`, `APPLE_API_ISSUER`, `APPLE_API_KEY_CONTENT`: App Store Connect API key details for notarization.
-
-Alternatively, notarization can use `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID`. API key notarization is recommended for CI.
-
-If no Apple certificate is configured, the workflow falls back to ad-hoc signing for macOS builds. This is useful for internal testing, but it is not a substitute for Developer ID signing and notarization. For local testing of an unsigned downloaded build, remove the quarantine attribute:
-
-```bash
-xattr -dr com.apple.quarantine "/Applications/Blind Watermark.app"
-```
+macOS builds are intentionally disabled. GitHub-hosted runners do not provide a practical universal matrix for every Linux/Windows 32-bit installer target. If 32-bit packages are required, use self-hosted runners or add target-specific cross-compilation setup.
 
 Create a release by pushing a tag:
 

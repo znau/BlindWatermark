@@ -12,7 +12,7 @@ Blind Watermark 是一个跨平台、商业级的盲水印工具，用于图片�
 - SQLite 证据库记录 SHA-256、感知哈希、PSNR、算法版本和产权信息。
 - 支持 JSON、CSV、PDF 证据包导出。
 - 桌面端支持英文、简体中文、繁体中文。
-- 跨平台架构，支持 macOS、Windows、Linux。
+- 跨平台架构，当前发布打包聚焦 Windows 和 Linux。
 - 提供 GitHub Actions 发布打包流程。
 
 ## 架构
@@ -156,31 +156,10 @@ cargo run -p watermark -- evidence export \
 
 `.github/workflows/release.yml` 会构建：
 
-- macOS x64。
-- macOS arm64。
-- Windows x64。
-- Linux x64。
+- Windows x64，使用 NSIS 安装包。
+- Linux x64，输出 DEB 和 AppImage。
 
-GitHub 托管 runner 对 Linux/Windows 32 位安装包没有通用、稳定的一键矩阵。如果必须支持 32 位包，建议使用 self-hosted runner 或补充目标平台交叉编译配置。
-
-### macOS 签名和公证
-
-公开分发的 macOS 安装包应该使用 Apple Developer ID 证书签名并完成 notarization 公证。否则 Gatekeeper 可能会显示误导性的“应用已损坏”提示，Apple Silicon 从 GitHub 下载的构建尤其容易遇到。
-
-生产发布请在 GitHub 仓库 Secrets 中配置：
-
-- `APPLE_CERTIFICATE`：Developer ID Application `.p12` 的 base64 内容。
-- `APPLE_CERTIFICATE_PASSWORD`：`.p12` 密码。
-- `KEYCHAIN_PASSWORD`：CI 临时 keychain 密码。
-- `APPLE_API_KEY`、`APPLE_API_ISSUER`、`APPLE_API_KEY_CONTENT`：用于 notarization 的 App Store Connect API key。
-
-也可以使用 `APPLE_ID`、`APPLE_PASSWORD`、`APPLE_TEAM_ID` 做公证，但 CI 更推荐 API key。
-
-如果没有配置 Apple 证书，workflow 会对 macOS 构建使用 ad-hoc signing，适合内部测试，但不能替代 Developer ID 签名和公证。如果只是本地测试未签名下载包，可以移除 quarantine 属性：
-
-```bash
-xattr -dr com.apple.quarantine "/Applications/Blind Watermark.app"
-```
+macOS 构建已主动关闭。GitHub 托管 runner 对 Linux/Windows 32 位安装包没有通用、稳定的一键矩阵。如果必须支持 32 位包，建议使用 self-hosted runner 或补充目标平台交叉编译配置。
 
 创建发布：
 

@@ -3,7 +3,6 @@
 /dist
 /ui/dist
 /src-tauri/target
-/src-tauri/tauri.macos.signing.json
 /.DS_Store
 /*.sqlite
 /*.db
